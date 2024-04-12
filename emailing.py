@@ -12,7 +12,16 @@ RECEIVER = "lhanco@gmail.com"
 def send_email(image_path):
     email_message = EmailMessage()
     email_message["Subject"] = "New customer showed up!"
-    email_message.set_content("Hey, we have just seen a new customer.")
+
+    # email_message.set_content("Hey, we have just seen a new customer.")
+    email_message.add_alternative(f"""\
+    <html>
+    <div>
+        <h1>Hey!</h1>
+        <p>Customer is coming!</p>
+    </body>
+    </html>
+    """, subtype='html')
 
     with open(image_path, "rb") as file:
         content = file.read()
@@ -26,73 +35,20 @@ def send_email(image_path):
                                  maintype="image",
                                  subtype=image_format)
 
-    gmail = smtplib.SMTP("smtp.gmail.com", 587)
-    gmail.ehlo()
-    gmail.starttls()
-    gmail.login(SENDER, PASSWORD)
-    gmail.sendmail(SENDER, RECEIVER, email_message.as_string())
-    gmail.quit()
+    try:
+        gmail = smtplib.SMTP("smtp.gmail.com", 587)
+        gmail.ehlo()
+        gmail.starttls()
+        gmail.login(SENDER, PASSWORD)
+        gmail.sendmail(SENDER, RECEIVER, email_message.as_string())
+        gmail.quit()
 
-    print("Email was sent!")
+        print("Email was sent!")
+
+        return True, None
+    except smtplib.SMTPException as e:
+        return False, str(e)
 
 
 if __name__ == "__main__":
     send_email(image_path="images/11.png")
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

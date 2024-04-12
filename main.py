@@ -1,7 +1,28 @@
+import os
 import cv2
 import time
 import glob
 from emailing import send_email
+from threading import Thread
+
+IMAGES_PATH = "images/*.png"
+
+
+def clean_folder():
+    images_list = glob.glob(IMAGES_PATH)
+    for image in images_list:
+        os.remove(image)
+
+
+def send_email_then_clean_folder(image_object):
+    print("start to send email.")
+    success, error = send_email(image_object)
+    if success:
+        print("start to clean folder.")
+        clean_folder()
+    else:
+        print(f"Email sent failed! \n{error}")
+
 
 """
     VideoCapture(0)
@@ -56,12 +77,15 @@ while True:
 
     if status_list[0] == 1 and status_list[1] == 0:
         # Extract image from webcam video
-        all_images = sorted(glob.glob("images/*.png"))
+        all_images = sorted(glob.glob(IMAGES_PATH))
         index = int(len(all_images) / 2)
         image_with_object = all_images[index]
         print(f"image with object: {index}.png")
 
-        send_email()
+        # Send email with image as attachment
+        email_clean_thread = Thread(target=send_email_then_clean_folder, args=(image_with_object, ))
+        email_clean_thread.daemon = True
+        email_clean_thread.start()
 
     cv2.imshow("Video - bounded frame", frame)
 
@@ -73,3 +97,7 @@ while True:
 
 video.release()
 cv2.destroyAllWindows()
+
+
+
+
