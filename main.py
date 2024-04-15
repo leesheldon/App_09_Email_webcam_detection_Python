@@ -7,24 +7,36 @@ from threading import Thread
 from datetime import datetime
 from shutil import copyfile
 
-IMAGES_PATH = "images/*.png"
+IMAGES_PATH = "images/"
+SENT_OUT_PATH = "sent_out/"
 
 
 def clean_folder():
-    images_list = glob.glob(IMAGES_PATH)
+    images_list = glob.glob(IMAGES_PATH + "*.png")
     for image in images_list:
         os.remove(image)
 
     print("Folder was cleaned.")
 
 
-def send_email_then_clean_folder(image_object):
-    success, error = send_email(image_object)
+def send_email_then_remove_image(image_param):
+    success, error = send_email(image_param)
     if success:
         print("Email was sent!")
-        os.remove(image_object)
+
+        os.remove(image_param)
     else:
         print(f"Email sent failed! \n{error}")
+
+
+def put_text_into_video_frame(frame_param):
+    now = datetime.now()
+    cv2.putText(img=frame_param, text=now.strftime("%A"), org=(30, 50), fontFace=cv2.FONT_HERSHEY_PLAIN,
+                fontScale=2, color=(255, 255, 255), thickness=2, lineType=cv2.LINE_AA)
+    cv2.putText(img=frame_param, text=now.strftime("%H:%M:%S"), org=(30, 80), fontFace=cv2.FONT_HERSHEY_PLAIN,
+                fontScale=2, color=(255, 0, 0), thickness=2, lineType=cv2.LINE_AA)
+    cv2.putText(img=frame_param, text="Press q button to quit.", org=(30, 110), fontFace=cv2.FONT_HERSHEY_PLAIN,
+                fontScale=2, color=(0, 128, 255), thickness=2, lineType=cv2.LINE_AA)
 
 
 """
@@ -72,7 +84,8 @@ while True:
         rectangle = cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 255, 0), 3)
         if rectangle.any():
             status = 1
-            cv2.imwrite(f"images/{count}.png", frame)
+            put_text_into_video_frame(frame)
+            cv2.imwrite(f"{IMAGES_PATH}{count}.png", frame)
             count = count + 1
 
     status_list.append(status)
@@ -80,32 +93,29 @@ while True:
 
     if status_list[0] == 1 and status_list[1] == 0:
         # Extract image from webcam video
-        all_images = sorted(glob.glob(IMAGES_PATH))
+        all_images = sorted(glob.glob(IMAGES_PATH + "*.png"))
         index = int(len(all_images) / 2)
         # image_with_object = all_images[index]
         print(f"image with object: {index}.png")
 
-        now = datetime.now()
-        sent_file_name = now.strftime('%H%M%S') + "_" + f"{index}.png"
-        copyfile(f"images/{index}.png", f"sent_out/{sent_file_name}")
+        dt_now = datetime.now()
+        sent_file_name = dt_now.strftime('%H%M%S') + "_" + f"{index}.png"
+
+        # Copy image with object to sent_out folder to send as attachment via Gmail
+        copyfile(f"{IMAGES_PATH}{index}.png", f"{SENT_OUT_PATH}{sent_file_name}")
 
         clean_folder()
+        # Reset the image frame count
         count = 1
 
         # Send email with image as attachment
-        all_sent_images = glob.glob(f"sent_out/{sent_file_name}")
+        all_sent_images = glob.glob(f"{SENT_OUT_PATH}{sent_file_name}")
         for img in all_sent_images:
-            email_clean_thread = Thread(target=send_email_then_clean_folder, args=(img, ))
-            email_clean_thread.daemon = True
-            email_clean_thread.start()
+            email_thread = Thread(target=send_email_then_remove_image, args=(img,))
+            email_thread.daemon = True
+            email_thread.start()
 
-    now = datetime.now()
-    cv2.putText(img=frame, text=now.strftime("%A"), org=(30, 50), fontFace=cv2.FONT_HERSHEY_PLAIN,
-                fontScale=2, color=(255, 255, 255), thickness=2, lineType=cv2.LINE_AA)
-    cv2.putText(img=frame, text=now.strftime("%H:%M:%S"), org=(30, 80), fontFace=cv2.FONT_HERSHEY_PLAIN,
-                fontScale=2, color=(255, 0, 0), thickness=2, lineType=cv2.LINE_AA)
-    cv2.putText(img=frame, text="Press q button to quit.", org=(30, 110), fontFace=cv2.FONT_HERSHEY_PLAIN,
-                fontScale=2, color=(0, 128, 255), thickness=2, lineType=cv2.LINE_AA)
+    put_text_into_video_frame(frame)
     cv2.imshow("Video - bounded frame", frame)
 
     # User pressed the "q" key on keyboard to stop the video from camera
@@ -114,9 +124,10 @@ while True:
     if key == ord("q"):
         break
 
+
+clean_folder()
+for img_sent_out in glob.glob(SENT_OUT_PATH + "*.png"):
+    send_email_then_remove_image(img_sent_out)
+
 video.release()
 cv2.destroyAllWindows()
-
-
-
-
