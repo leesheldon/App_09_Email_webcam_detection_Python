@@ -43,8 +43,6 @@ def send_email(image_path):
         gmail.sendmail(SENDER, RECEIVER, email_message.as_string())
         gmail.quit()
 
-        print("Email was sent!")
-
         return True, None
     except smtplib.SMTPException as e:
         return False, str(e)

@@ -4,6 +4,8 @@ import time
 import glob
 from emailing import send_email
 from threading import Thread
+from datetime import datetime
+from shutil import copyfile
 
 IMAGES_PATH = "images/*.png"
 
@@ -13,13 +15,14 @@ def clean_folder():
     for image in images_list:
         os.remove(image)
 
+    print("Folder was cleaned.")
+
 
 def send_email_then_clean_folder(image_object):
-    print("start to send email.")
     success, error = send_email(image_object)
     if success:
-        print("start to clean folder.")
-        clean_folder()
+        print("Email was sent!")
+        os.remove(image_object)
     else:
         print(f"Email sent failed! \n{error}")
 
@@ -79,14 +82,30 @@ while True:
         # Extract image from webcam video
         all_images = sorted(glob.glob(IMAGES_PATH))
         index = int(len(all_images) / 2)
-        image_with_object = all_images[index]
+        # image_with_object = all_images[index]
         print(f"image with object: {index}.png")
 
-        # Send email with image as attachment
-        email_clean_thread = Thread(target=send_email_then_clean_folder, args=(image_with_object, ))
-        email_clean_thread.daemon = True
-        email_clean_thread.start()
+        now = datetime.now()
+        sent_file_name = now.strftime('%H%M%S') + "_" + f"{index}.png"
+        copyfile(f"images/{index}.png", f"sent_out/{sent_file_name}")
 
+        clean_folder()
+        count = 1
+
+        # Send email with image as attachment
+        all_sent_images = glob.glob(f"sent_out/{sent_file_name}")
+        for img in all_sent_images:
+            email_clean_thread = Thread(target=send_email_then_clean_folder, args=(img, ))
+            email_clean_thread.daemon = True
+            email_clean_thread.start()
+
+    now = datetime.now()
+    cv2.putText(img=frame, text=now.strftime("%A"), org=(30, 50), fontFace=cv2.FONT_HERSHEY_PLAIN,
+                fontScale=2, color=(255, 255, 255), thickness=2, lineType=cv2.LINE_AA)
+    cv2.putText(img=frame, text=now.strftime("%H:%M:%S"), org=(30, 80), fontFace=cv2.FONT_HERSHEY_PLAIN,
+                fontScale=2, color=(255, 0, 0), thickness=2, lineType=cv2.LINE_AA)
+    cv2.putText(img=frame, text="Press q button to quit.", org=(30, 110), fontFace=cv2.FONT_HERSHEY_PLAIN,
+                fontScale=2, color=(0, 128, 255), thickness=2, lineType=cv2.LINE_AA)
     cv2.imshow("Video - bounded frame", frame)
 
     # User pressed the "q" key on keyboard to stop the video from camera
